@@ -1,0 +1,6 @@
+@echo off
+echo Installing dependencies...
+py -m pip install -r requirements.txt
+echo Starting SyncCollection App...
+py -m streamlit run app.py
+pause
