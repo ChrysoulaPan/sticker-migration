@@ -169,6 +169,69 @@ def extract_all_collections(html):
             
     return results
 
+def extract_stickers_from_html(html, category_option):
+    if html.startswith("ERROR:"):
+        return "", "", "", 0, []
+        
+    soup = BeautifulSoup(html, 'html.parser')
+    checklist_table = soup.find('table', id='checklist')
+    
+    # Extract Album Info
+    name = ""
+    h1 = soup.find('h1')
+    if h1:
+        name = h1.text.replace("Checklist", "").strip()
+    
+    year = ""
+    total_stickers_text = ""
+    big_text = soup.find('p', class_='big_text')
+    if big_text:
+        spans = big_text.find_all('span')
+        for span in spans:
+            text = span.text.strip()
+            if "Year:" in text:
+                year = text.replace("Year:", "").strip()
+            elif "Total stickers:" in text:
+                total_stickers_text = text.replace("Total stickers:", "").strip()
+                
+    total_count = 0
+    if total_stickers_text:
+        try:
+            total_count = int("".join([c for c in total_stickers_text if c.isdigit()]))
+        except:
+            pass
+            
+    # Extract Stickers
+    stickers = []
+    if checklist_table:
+        tbody = checklist_table.find('tbody')
+        rows = tbody.find_all('tr') if tbody else checklist_table.find_all('tr')
+        for row in rows:
+            cols = row.find_all(['td', 'th'])
+            if len(cols) >= 4:
+                no = cols[0].get_text(strip=True)
+                title = cols[1].get_text(strip=True)
+                section = cols[2].get_text(strip=True)
+                type_ = cols[3].get_text(strip=True)
+                
+                if no.lower() == "no." or title.lower() == "title":
+                    continue
+                
+                if category_option == "Cards" or (category_option == "Mixed" and "Card" in type_):
+                    category = "card"
+                else:
+                    category = "sticker"
+                        
+                stickers.append({
+                    "No.": no,
+                    "Title": title,
+                    "Section": section,
+                    "Type": type_,
+                    "Category": category
+                })
+                
+    return name, year, total_stickers_text, total_count, stickers
+
 if page == "User Collections":
     st.title("📓 SyncCollection")
     st.markdown("Scrape user collections for needed and offered stickers.")
@@ -217,89 +280,115 @@ elif page == "Specific Album":
     st.markdown("Scrape album checklist to get a list of all stickers.")
 
     album_id = st.text_input("Album ID", placeholder="e.g. topps_uefa_champions_league_2025-2026")
+    category_option = st.radio("Select category",["Stickers","Cards","Mixed"], index=0)   
     sync_album_button = st.button("Sync Album", type="primary")
 
-    if sync_album_button and album_id:
+    if sync_album_button and album_id and category_option:
         album_id = album_id.strip()
-        with st.spinner(f"Fetching checklist for album: {album_id}..."):
-            url = f"https://www.laststicker.com/cards/{album_id}/checklist"
-            html = fetch_html(url)
+        if album_id.endswith("/checklist"):
+            album_id = album_id[:-10]
             
-            if html.startswith("ERROR:"):
+        with st.spinner(f"Fetching checklist details for album: {album_id}..."):
+            url_standard = f"https://www.laststicker.com/cards/{album_id}"
+            url_extended = f"https://www.laststicker.com/cards/{album_id}/checklist"
+            
+            html_standard = fetch_html(url_standard)
+            html_extended = fetch_html(url_extended)
+            
+            if html_standard.startswith("ERROR:") and html_extended.startswith("ERROR:"):
                 st.error("Failed to fetch data. Please check the album ID.")
             else:
-                soup = BeautifulSoup(html, 'html.parser')
-                checklist_table = soup.find('table', id='checklist')
+                name, year, total_text, total_count, standard_stickers = extract_stickers_from_html(html_standard, category_option)
+                name_ext, year_ext, total_text_ext, total_count_ext, extended_stickers = extract_stickers_from_html(html_extended, category_option)
                 
-                # Requested debug logging to console
-                if checklist_table:
-                    print(f"--- DEBUG: Checklist HTML Start ---\n{checklist_table.prettify()[:1500]}\n--- DEBUG: Checklist HTML End ---")
-                else:
-                    print("--- DEBUG: No checklist table found ---")
-
-                # Extract Album Info
-                name = ""
-                h1 = soup.find('h1')
-                if h1:
-                    name = h1.text.replace("Checklist", "").strip()
+                # Consolidate metadata
+                final_name = name if name else name_ext
+                final_year = year if year else year_ext
                 
-                year = ""
-                total_stickers = ""
-                big_text = soup.find('p', class_='big_text')
-                if big_text:
-                    spans = big_text.find_all('span')
-                    for span in spans:
-                        text = span.text.strip()
-                        if "Year:" in text:
-                            year = text.replace("Year:", "").strip()
-                        elif "Total stickers:" in text:
-                            total_stickers = text.replace("Total stickers:", "").strip()
+                total_display = "Unknown"
+                if total_text and total_text_ext and total_text != total_text_ext:
+                    total_display = f"{total_text} (Std) / {total_text_ext} (Ext)"
+                elif total_text:
+                    total_display = total_text
+                elif total_text_ext:
+                    total_display = total_text_ext
                 
-                # Extract Stickers
-                stickers = []
-                if checklist_table:
-                    tbody = checklist_table.find('tbody')
-                    rows = tbody.find_all('tr') if tbody else checklist_table.find_all('tr')
-                    for row in rows:
-                        cols = row.find_all(['td', 'th'])
-                        if len(cols) >= 4:
-                            no = cols[0].get_text(strip=True)
-                            title = cols[1].get_text(strip=True)
-                            section = cols[2].get_text(strip=True)
-                            type_ = cols[3].get_text(strip=True)
-                            
-                            if no.lower() == "no." or title.lower() == "title":
-                                continue
-                            
-                            stickers.append({
-                                "No.": no,
-                                "Title": title,
-                                "Section": section,
-                                "Type": type_,
-                                "Category": "sticker"
-                            })
+                # Determine standard and extended lists
+                has_diff = False
+                base_stickers = []
+                full_stickers = []
                 
+                if len(standard_stickers) != len(extended_stickers) and len(standard_stickers) > 0 and len(extended_stickers) > 0:
+                    has_diff = True
+                    base_stickers = standard_stickers
+                    full_stickers = extended_stickers
+                elif len(standard_stickers) > 0:
+                    full_stickers = standard_stickers
+                    if total_count > 0 and len(full_stickers) > total_count:
+                        has_diff = True
+                        base_stickers = full_stickers[:total_count]
+                elif len(extended_stickers) > 0:
+                    full_stickers = extended_stickers
+                    if total_count_ext > 0 and len(full_stickers) > total_count_ext:
+                        has_diff = True
+                        base_stickers = full_stickers[:total_count_ext]
+                        
                 st.subheader("Album Information")
                 col1, col2, col3 = st.columns(3)
-                col1.metric("Album Name", name if name else "Unknown")
-                col2.metric("Year", year if year else "Unknown")
-                col3.metric("Total Stickers", total_stickers if total_stickers else "Unknown")
+                col1.metric("Album Name", final_name if final_name else "Unknown")
+                col2.metric("Year", final_year if final_year else "Unknown")
+                col3.metric("Stated Total Stickers", total_display)
                 
-                if not stickers:
+                if not full_stickers:
                     st.warning("No stickers found in the checklist.")
                 else:
-                    st.success(f"Extracted {len(stickers)} stickers.")
-                    
-                    st.subheader("Results")
-                    with st.expander("View JSON Output", expanded=True):
-                        st.json(stickers)
+                    if has_diff:
+                        st.success(f"Extracted standard version ({len(base_stickers)} items) and extended version ({len(full_stickers)} items).")
+                        st.subheader("Results")
                         
-                    df = pd.DataFrame(stickers)
-                    csv = df.to_csv(index=False).encode('utf-8')
-                    
-                    st.download_button(
-                        label="Download CSV",
-                        data=csv,
-                        file_name=f"{album_id}_checklist.csv",
-                        mime="text/csv",
-                    )
+                        tab1, tab2 = st.tabs(["Standard Checklist", "Extended Checklist"])
+                        
+                        with tab1:
+                            st.write(f"**Standard Version ({len(base_stickers)} items)**")
+                            with st.expander("View JSON Output", expanded=True):
+                                st.json(base_stickers)
+                                
+                            df_base = pd.DataFrame(base_stickers)
+                            csv_base = df_base.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="Download Standard CSV",
+                                data=csv_base,
+                                file_name=f"{album_id}_standard.csv",
+                                mime="text/csv",
+                                key="download_standard"
+                            )
+                            
+                        with tab2:
+                            st.write(f"**Extended Version ({len(full_stickers)} items)**")
+                            with st.expander("View JSON Output", expanded=True):
+                                st.json(full_stickers)
+                                
+                            df_full = pd.DataFrame(full_stickers)
+                            csv_full = df_full.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="Download Extended CSV",
+                                data=csv_full,
+                                file_name=f"{album_id}_extended.csv",
+                                mime="text/csv",
+                                key="download_extended"
+                            )
+                    else:
+                        st.success(f"Extracted {len(full_stickers)} stickers.")
+                        st.subheader("Results")
+                        with st.expander("View JSON Output", expanded=True):
+                            st.json(full_stickers)
+                            
+                        df = pd.DataFrame(full_stickers)
+                        csv = df.to_csv(index=False).encode('utf-8')
+                        
+                        st.download_button(
+                            label="Download CSV",
+                            data=csv,
+                            file_name=f"{album_id}_checklist.csv",
+                            mime="text/csv",
+                        )

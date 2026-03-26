@@ -45,6 +45,7 @@ The application has a dynamic sidebar that provides two main pages to choose fro
 
 2. **Specific Album**
    - **Enter an Album ID** (e.g., `topps_uefa_champions_league_2025-2026`). You can find this ID in the album's direct URL.
+   - **Select a Category**: Choose whether you only want the row marked as `Stickers`, `Cards`, or `Mixed`. The app will assign the correct `Category` column property based on this toggle.
    - **Click "Sync Album"**.
-   - The app scrapes the full checklist, providing a complete breakdown. It displays basic metrics about the album like Name, Year, and the Total amount of Stickers.
-   - You can also view the raw JSON data inside the expander and hit **Download CSV** for the complete tabular checklist.
+   - The app scrapes the checklist, automatically checking both the standard album URL and the extended `/checklist` URL. It displays basic metrics about the album like Name, Year, and the Stated Total amount of Stickers.
+   - **Standard vs Extended**: If the standard and extended versions differ, or the stated total stickers is smaller than the full list, the app will separate them into tabs. You can view JSON data or download CSV files for either the **Standard Version** or **Extended Version**.
