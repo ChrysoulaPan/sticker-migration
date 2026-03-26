@@ -5,10 +5,11 @@ import pandas as pd
 import re
 import time
 import json
+from io import BytesIO
 
 st.set_page_config(page_title="SyncCollection", page_icon="📓", layout="wide")
 
-page = st.sidebar.radio("Navigation", ["User Collections", "Specific Album"])
+page = st.sidebar.radio("Navigation", ["User Collections", "Specific Album", "Generate Album Checklist"])
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_html(url):
@@ -392,3 +393,103 @@ elif page == "Specific Album":
                             file_name=f"{album_id}_checklist.csv",
                             mime="text/csv",
                         )
+
+elif page == "Generate Album Checklist":
+    st.title("📓 Generate Album Checklist")
+    st.markdown("Generate an Excel checklist of all albums under a specific category.")
+
+    category_id = st.text_input("Category ID", placeholder="e.g. uefa_european_championship")
+    generate_button = st.button("Generate Checklist", type="primary")
+
+    if generate_button and category_id:
+        category_id = category_id.strip()
+        with st.spinner(f"Fetching albums for category: {category_id}..."):
+            url = f"https://www.laststicker.com/cards/s/{category_id}"
+            html = fetch_html(url)
+            
+            if html.startswith("ERROR:"):
+                st.error("Failed to fetch data. Please check the category ID.")
+            else:
+                soup = BeautifulSoup(html, 'html.parser')
+                album_items = soup.find_all('div', class_='album_item')
+                
+                albums = []
+                for item in album_items:
+                    h3 = item.find('h3')
+                    if h3:
+                        full_text = h3.text.strip()
+                        desc = full_text
+                        publisher = ""
+                        
+                        b_tag = h3.find('b')
+                        if b_tag:
+                            desc = b_tag.text.strip()
+                            
+                        # Parse out Publisher in parenthesis at the end of the full h3 text
+                        match = re.search(r'\(([^)]+)\)$', full_text)
+                        if match:
+                            publisher = match.group(1).strip()
+                            if not b_tag:
+                                desc = full_text[:match.start()].strip()
+                                
+                        year = ""
+                        total_items = ""
+                        category = ""
+                        
+                        spans = item.find_all('span')
+                        for span in spans:
+                            span_text = span.text.strip()
+                            if "Year:" in span_text:
+                                year = span_text.replace("Year:", "").strip()
+                            elif "Total stickers:" in span_text:
+                                total_items = span_text.replace("Total stickers:", "").strip()
+                                category = "Stickers"
+                            elif "Total cards:" in span_text:
+                                total_items = span_text.replace("Total cards:", "").strip()
+                                category = "Cards"
+                                
+                        albums.append({
+                            "Album Description": desc,
+                            "Publisher": publisher,
+                            "Year": year,
+                            "Total Count": total_items,
+                            "Category": category,
+                            "Stickeristas": False
+                        })
+                            
+                if not albums:
+                    st.warning("No albums found for this category.")
+                else:
+                    st.success(f"Found {len(albums)} albums.")
+                    
+                    df = pd.DataFrame(albums)
+                    
+                    st.subheader("Results")
+                    edited_df = st.data_editor(
+                        df,
+                        column_config={
+                            "Stickeristas": st.column_config.CheckboxColumn(
+                                "Stickeristas",
+                                help="Check if you have this album",
+                                default=False,
+                            )
+                        },
+                        disabled=["Album Description", "Publisher", "Year", "Total Count", "Category"],
+                        hide_index=True,
+                        use_container_width=True
+                    )
+                    
+                    df_export = edited_df.copy()
+                    df_export["Stickeristas"] = df_export["Stickeristas"].apply(lambda x: True if x else "")
+                    
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df_export.to_excel(writer, index=False, sheet_name='Checklist')
+                    
+                    st.download_button(
+                        label="Download Excel",
+                        data=output.getvalue(),
+                        file_name=f"{category_id}_albums.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+

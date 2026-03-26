@@ -5,6 +5,7 @@ SyncCollection is a web application that extracts sticker collections and specif
 ## Features
 - **User Collections**: Sync an entire user profile to extract detailed lists of all needed and offered stickers across their active collections.
 - **Specific Album Checklist**: Sync a specific album to download its full checklist as a CSV, complete with `No.`, `Title`, `Section`, `Type`, and a default `Category`.
+- **Generate Album Checklist**: Scrape an entire category (e.g. `uefa_european_championship`) to generate a master checklist of all released albums, exported as an interactive Excel file.
 
 ## Prerequisites
 To run this application locally, you will need Python 3 installed. Python 3.8 or later is recommended.
@@ -13,6 +14,7 @@ The application depends on the following third-party libraries:
 - `pandas`
 - `beautifulsoup4`
 - `cloudscraper`
+- `openpyxl`
 
 ## Setup & Execution
 
@@ -35,7 +37,7 @@ The application depends on the following third-party libraries:
 
 ## Navigating the Application
 
-The application has a dynamic sidebar that provides two main pages to choose from:
+The application has a dynamic sidebar that provides three main pages to choose from:
 
 1. **User Collections**
    - **Enter a Username** (e.g., your username or any public profile).
@@ -49,3 +51,10 @@ The application has a dynamic sidebar that provides two main pages to choose fro
    - **Click "Sync Album"**.
    - The app scrapes the checklist, automatically checking both the standard album URL and the extended `/checklist` URL. It displays basic metrics about the album like Name, Year, and the Stated Total amount of Stickers.
    - **Standard vs Extended**: If the standard and extended versions differ, or the stated total stickers is smaller than the full list, the app will separate them into tabs. You can view JSON data or download CSV files for either the **Standard Version** or **Extended Version**.
+
+3. **Generate Album Checklist**
+   - **Enter a Category ID** (e.g., `uefa_european_championship`). You can find this ID in a category's LastSticker URL.
+   - **Click "Generate Checklist"**.
+   - The app scrapes all sub-albums within that specific category, extracting their Descriptions, Publishers, release Years, Total Count, and default Categories (Cards vs Stickers).
+   - It will display an interactive table where you can optionally check the `Stickeristas` column if you actively own or track the album.
+   - Click **Download Excel** to save the `.xlsx` file. Checked rows export as `TRUE`, while unchecked rows export gracefully as perfectly empty cells.
