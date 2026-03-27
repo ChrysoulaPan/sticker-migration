@@ -9,7 +9,20 @@ from io import BytesIO
 
 st.set_page_config(page_title="SyncCollection", page_icon="📓", layout="wide")
 
-page = st.sidebar.radio("Navigation", ["User Collections", "Specific Album", "Generate Album Checklist"])
+query_params = st.query_params
+initial_page = "User Collections"
+initial_album_id = ""
+
+if "page" in query_params:
+    page_q = query_params["page"]
+    if page_q in ["User Collections", "Specific Album", "Generate Album Checklist"]:
+        initial_page = page_q
+
+if "album_id" in query_params:
+    initial_album_id = query_params["album_id"]
+
+page_options = ["User Collections", "Specific Album", "Generate Album Checklist"]
+page = st.sidebar.radio("Navigation", page_options, index=page_options.index(initial_page))
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_html(url):
@@ -172,7 +185,7 @@ def extract_all_collections(html):
 
 def extract_stickers_from_html(html, category_option):
     if html.startswith("ERROR:"):
-        return "", "", "", 0, []
+        return "", "", "", "", 0, []
         
     soup = BeautifulSoup(html, 'html.parser')
     checklist_table = soup.find('table', id='checklist')
@@ -185,6 +198,7 @@ def extract_stickers_from_html(html, category_option):
     
     year = ""
     total_stickers_text = ""
+    total_type = ""
     big_text = soup.find('p', class_='big_text')
     if big_text:
         spans = big_text.find_all('span')
@@ -194,7 +208,10 @@ def extract_stickers_from_html(html, category_option):
                 year = text.replace("Year:", "").strip()
             elif "Total stickers:" in text:
                 total_stickers_text = text.replace("Total stickers:", "").strip()
-                
+                total_type = "stickers"
+            elif "Total cards:" in text:
+                total_stickers_text = text.replace("Total cards:", "").strip()
+                total_type = "cards"
     total_count = 0
     if total_stickers_text:
         try:
@@ -231,7 +248,7 @@ def extract_stickers_from_html(html, category_option):
                     "Category": category
                 })
                 
-    return name, year, total_stickers_text, total_count, stickers
+    return name, year, total_stickers_text, total_type, total_count, stickers
 
 if page == "User Collections":
     st.title("📓 SyncCollection")
@@ -280,11 +297,16 @@ elif page == "Specific Album":
     st.title("📓 Sync Specific Album")
     st.markdown("Scrape album checklist to get a list of all stickers.")
 
-    album_id = st.text_input("Album ID", placeholder="e.g. topps_uefa_champions_league_2025-2026")
-    category_option = st.radio("Select category",["Stickers","Cards","Mixed"], index=0)   
+    album_id = st.text_input("Album ID", value=initial_album_id, placeholder="e.g. topps_uefa_champions_league_2025-2026")
+    category_option = st.radio("Select category",["Stickers","Cards","Mixed"], index=2)   
     sync_album_button = st.button("Sync Album", type="primary")
 
-    if sync_album_button and album_id and category_option:
+    auto_run = False
+    if initial_album_id and getattr(st.session_state, 'last_auto_album', None) != initial_album_id:
+        st.session_state.last_auto_album = initial_album_id
+        auto_run = True
+
+    if (sync_album_button or auto_run) and album_id and category_option:
         album_id = album_id.strip()
         if album_id.endswith("/checklist"):
             album_id = album_id[:-10]
@@ -299,8 +321,8 @@ elif page == "Specific Album":
             if html_standard.startswith("ERROR:") and html_extended.startswith("ERROR:"):
                 st.error("Failed to fetch data. Please check the album ID.")
             else:
-                name, year, total_text, total_count, standard_stickers = extract_stickers_from_html(html_standard, category_option)
-                name_ext, year_ext, total_text_ext, total_count_ext, extended_stickers = extract_stickers_from_html(html_extended, category_option)
+                name, year, total_text, total_type, total_count, standard_stickers = extract_stickers_from_html(html_standard, category_option)
+                name_ext, year_ext, total_text_ext, total_type_ext, total_count_ext, extended_stickers = extract_stickers_from_html(html_extended, category_option)
                 
                 # Consolidate metadata
                 final_name = name if name else name_ext
@@ -334,11 +356,14 @@ elif page == "Specific Album":
                         has_diff = True
                         base_stickers = full_stickers[:total_count_ext]
                         
+                final_total_type = total_type if total_text else total_type_ext
+                metric_title = "Stated total cards" if final_total_type == "cards" else "Stated total stickers"
+                
                 st.subheader("Album Information")
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Album Name", final_name if final_name else "Unknown")
                 col2.metric("Year", final_year if final_year else "Unknown")
-                col3.metric("Stated Total Stickers", total_display)
+                col3.metric(metric_title, total_display)
                 
                 if not full_stickers:
                     st.warning("No stickers found in the checklist.")
@@ -398,23 +423,50 @@ elif page == "Generate Album Checklist":
     st.title("📓 Generate Album Checklist")
     st.markdown("Generate an Excel checklist of all albums under a specific category.")
 
+    if 'checklist_category_id' not in st.session_state:
+        st.session_state['checklist_category_id'] = ""
+    if 'checklist_item_type' not in st.session_state:
+        st.session_state['checklist_item_type'] = "Both"
+    if 'albums_data' not in st.session_state:
+        st.session_state['albums_data'] = None
+
     category_id = st.text_input("Category ID", placeholder="e.g. uefa_european_championship")
+    item_type_option = st.radio("Item Type", ["Both", "Stickers", "Cards"], index=0)
     generate_button = st.button("Generate Checklist", type="primary")
 
     if generate_button and category_id:
         category_id = category_id.strip()
-        with st.spinner(f"Fetching albums for category: {category_id}..."):
-            url = f"https://www.laststicker.com/cards/s/{category_id}"
+        st.session_state['checklist_category_id'] = category_id
+        st.session_state['checklist_item_type'] = item_type_option
+        with st.spinner(f"Fetching {item_type_option.lower()} albums for category: {category_id}..."):
+            if item_type_option == "Both":
+                url = f"https://www.laststicker.com/cards/s/{category_id}"
+            elif item_type_option == "Stickers":
+                url = f"https://www.laststicker.com/cards/s1/{category_id}"
+            elif item_type_option == "Cards":
+                url = f"https://www.laststicker.com/cards/s2/{category_id}"
+                
             html = fetch_html(url)
             
             if html.startswith("ERROR:"):
                 st.error("Failed to fetch data. Please check the category ID.")
+                st.session_state['albums_data'] = None
             else:
                 soup = BeautifulSoup(html, 'html.parser')
                 album_items = soup.find_all('div', class_='album_item')
                 
                 albums = []
                 for item in album_items:
+                    a_tag = item.find('a', href=True)
+                    album_link_id = ""
+                    if a_tag:
+                        href = a_tag['href']
+                        parts = [p for p in href.split('/') if p]
+                        if len(parts) >= 2 and parts[0] == "cards":
+                            album_link_id = parts[1].replace("-checklist", "").strip()
+                            if album_link_id.endswith("- checklist"):
+                                album_link_id = album_link_id[:-11].strip()
+
                     h3 = item.find('h3')
                     if h3:
                         full_text = h3.text.strip()
@@ -449,6 +501,7 @@ elif page == "Generate Album Checklist":
                                 category = "Cards"
                                 
                         albums.append({
+                            "Link": f"/?page=Specific+Album&album_id={album_link_id}" if album_link_id else "",
                             "Album Description": desc,
                             "Publisher": publisher,
                             "Year": year,
@@ -456,40 +509,51 @@ elif page == "Generate Album Checklist":
                             "Category": category,
                             "Stickeristas": False
                         })
+                st.session_state['albums_data'] = albums
                             
-                if not albums:
-                    st.warning("No albums found for this category.")
-                else:
-                    st.success(f"Found {len(albums)} albums.")
-                    
-                    df = pd.DataFrame(albums)
-                    
-                    st.subheader("Results")
-                    edited_df = st.data_editor(
-                        df,
-                        column_config={
-                            "Stickeristas": st.column_config.CheckboxColumn(
-                                "Stickeristas",
-                                help="Check if you have this album",
-                                default=False,
-                            )
-                        },
-                        disabled=["Album Description", "Publisher", "Year", "Total Count", "Category"],
-                        hide_index=True,
-                        use_container_width=True
+    if st.session_state.get('albums_data') is not None and \
+       st.session_state.get('checklist_category_id') == category_id.strip() and \
+       st.session_state.get('checklist_item_type') == item_type_option:
+        albums = st.session_state['albums_data']
+        if not albums:
+            st.warning("No albums found for this category.")
+        else:
+            st.success(f"Found {len(albums)} albums.")
+            
+            df = pd.DataFrame(albums)
+            
+            st.subheader("Results")
+            edited_df = st.data_editor(
+                df,
+                column_config={
+                    "Link": st.column_config.LinkColumn(
+                        "🔗 Sync",
+                        display_text="Open ↗"
+                    ),
+                    "Stickeristas": st.column_config.CheckboxColumn(
+                        "Stickeristas",
+                        help="Check if you have this album",
+                        default=False,
                     )
-                    
-                    df_export = edited_df.copy()
-                    df_export["Stickeristas"] = df_export["Stickeristas"].apply(lambda x: True if x else "")
-                    
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        df_export.to_excel(writer, index=False, sheet_name='Checklist')
-                    
-                    st.download_button(
-                        label="Download Excel",
-                        data=output.getvalue(),
-                        file_name=f"{category_id}_albums.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
+                },
+                disabled=["Link", "Album Description", "Publisher", "Year", "Total Count", "Category"],
+                hide_index=True,
+                use_container_width=True
+            )
+            
+            df_export = edited_df.copy()
+            if "Link" in df_export:
+                df_export = df_export.drop("Link", axis=1)
+            df_export["Stickeristas"] = df_export["Stickeristas"].apply(lambda x: True if x else "")
+            
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_export.to_excel(writer, index=False, sheet_name='Checklist')
+            
+            st.download_button(
+                label="Download Excel",
+                data=output.getvalue(),
+                file_name=f"{category_id}_albums_{item_type_option.lower()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 

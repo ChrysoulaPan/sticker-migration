@@ -46,15 +46,17 @@ The application has a dynamic sidebar that provides three main pages to choose f
    - You can review the output in the JSON expander and click **Download CSV** to save the result.
 
 2. **Specific Album**
-   - **Enter an Album ID** (e.g., `topps_uefa_champions_league_2025-2026`). You can find this ID in the album's direct URL.
-   - **Select a Category**: Choose whether you only want the row marked as `Stickers`, `Cards`, or `Mixed`. The app will assign the correct `Category` column property based on this toggle.
-   - **Click "Sync Album"**.
-   - The app scrapes the checklist, automatically checking both the standard album URL and the extended `/checklist` URL. It displays basic metrics about the album like Name, Year, and the Stated Total amount of Stickers.
+   - **Enter an Album ID** (e.g., `topps_uefa_champions_league_2025-2026`). You can find this ID in the album's direct URL. Alternatively, you can deep-link into this page from the Generate Album Checklist table.
+   - **Select a category**: Choose whether you only want the row marked as `Stickers`, `Cards`, or `Mixed`. The app will assign the correct `Category` column property based on this toggle.
+   - **Click "Sync Album"** (this happens automatically if navigating via deep-links).
+   - The app scrapes the checklist, automatically checking both the standard album URL and the extended `/checklist` URL. It displays basic metrics about the album like Name, Year, and dynamically labels the stated total count as `Stated total stickers` or `Stated total cards`.
    - **Standard vs Extended**: If the standard and extended versions differ, or the stated total stickers is smaller than the full list, the app will separate them into tabs. You can view JSON data or download CSV files for either the **Standard Version** or **Extended Version**.
 
 3. **Generate Album Checklist**
    - **Enter a Category ID** (e.g., `uefa_european_championship`). You can find this ID in a category's LastSticker URL.
+   - **Select Item Type**: Choose to fetch "Both", "Stickers", or "Cards" via the radio button.
    - **Click "Generate Checklist"**.
    - The app scrapes all sub-albums within that specific category, extracting their Descriptions, Publishers, release Years, Total Count, and default Categories (Cards vs Stickers).
-   - It will display an interactive table where you can optionally check the `Stickeristas` column if you actively own or track the album.
-   - Click **Download Excel** to save the `.xlsx` file. Checked rows export as `TRUE`, while unchecked rows export gracefully as perfectly empty cells.
+   - It will display an interactive table where you can track ownership via the `Stickeristas` checkboxes. The table intelligently preserves these selections as you browse around.
+   - Click the **Open ↗** link in the `🔗 Sync` column to deep-link directly to that specific album's checklist in a new tab.
+   - Click **Download Excel** to save the `.xlsx` file. Checked rows export as `TRUE`, and the filename dynamically specifies what was fetched (e.g. `category_albums_stickers.xlsx`).
