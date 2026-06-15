@@ -1,62 +1,57 @@
-# SyncCollection
+# SyncCollection (HTML-Only Version)
 
-SyncCollection is a web application that extracts sticker collections and specific album checklists from LastSticker. This helps collectors keep track of their progress offline or manage their lists in custom databases. The application is built using Python, Streamlit, and BeautifulSoup for HTML parsing.
+This is a simplified, standalone version of the SyncCollection tool. It focuses entirely on processing exported HTML files from LastSticker, removing the need for automated browsers or external scraping libraries.
 
-## Features
-- **User Collections**: Sync an entire user profile to extract detailed lists of all needed and offered stickers across their active collections.
-- **Specific Album Checklist**: Sync a specific album to download its full checklist as a CSV, complete with `No.`, `Title`, `Section`, `Type`, and a default `Category`.
-- **Generate Album Checklist**: Scrape an entire category (e.g. `uefa_european_championship`) to generate a master checklist of all released albums, exported as an interactive Excel file.
+## 🚀 Getting Started
 
-## Prerequisites
-To run this application locally, you will need Python 3 installed. Python 3.8 or later is recommended.
-The application depends on the following third-party libraries:
-- `streamlit`
-- `pandas`
-- `beautifulsoup4`
-- `cloudscraper`
-- `openpyxl`
+### Prerequisites
+Ensure you have Python installed, then install the required libraries:
+```bash
+pip install -r requirements.txt
+```
 
-## Setup & Execution
+### Running the App
+```bash
+streamlit run app.py
+```
 
-### Windows
-1. Double-click the provided `run.bat` file in the project folder.
-2. The batch script will automatically install any missing dependencies and then start the Streamlit application.
-3. A local server will start, and the UI will automatically open in your default web browser at `http://localhost:8501`.
+---
 
-### macOS / Linux / Manual Execution
-1. Open your terminal or command prompt.
-2. Navigate to the project directory.
-3. Install the required dependencies using pip:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run the Streamlit app:
-   ```bash
-   streamlit run app.py
-   ```
+## 🛠 How to Export Data from LastSticker
 
-## Navigating the Application
+Since this version does not fetch data automatically, you must manually provide the HTML content from LastSticker. Follow these steps to ensure the data is captured correctly:
 
-The application has a dynamic sidebar that provides three main pages to choose from:
+### Step 1: Visit the Page
+Choose the correct URL on [LastSticker.com](https://www.laststicker.com) based on what you want to sync:
 
-1. **User Collections**
-   - **Enter a Username** (e.g., your username or any public profile).
-   - **Click "Sync Collection"**.
-   - The app will securely connect, fetch the list of active collections, and securely extract checklists of needed and offered stickers.
-   - You can review the output in the JSON expander and click **Download CSV** to save the result.
+*   **User Collections**: `https://www.laststicker.com/user/[YOUR_USERNAME]/collections`
+*   **Specific Album (Standard)**: `https://www.laststicker.com/cards/[ALBUM_ID]`
+*   **Specific Album (Extended)**: `https://www.laststicker.com/cards/[ALBUM_ID]/checklist`
+*   **Category Checklist (List of Albums)**: `https://www.laststicker.com/cards/s/[CATEGORY_ID]`
 
-2. **Specific Album**
-   - **Enter an Album ID** (e.g., `topps_uefa_champions_league_2025-2026`). You can find this ID in the album's direct URL. Alternatively, you can deep-link into this page from the Generate Album Checklist table.
-   - **Select a category**: Choose whether you only want the row marked as `Stickers`, `Cards`, or `Mixed`. The app will assign the correct `Category` column property based on this toggle.
-   - **Click "Sync Album"** (this happens automatically if navigating via deep-links).
-   - The app scrapes the checklist, automatically checking both the standard album URL and the extended `/checklist` URL. It displays basic metrics about the album like Name, Year, and dynamically labels the stated total count as `Stated total stickers` or `Stated total cards`.
-   - **Standard vs Extended**: If the standard and extended versions differ, or the stated total stickers is smaller than the full list, the app will separate them into tabs. You can view JSON data or download CSV files for either the **Standard Version** or **Extended Version**.
+### Step 2: Export the HTML
+1.  **Right-click** anywhere on the page and select **Inspect** (or press `F12`).
+2.  In the Elements tab, find the `<html>` or `<body>` tag.
+3.  **Right-click** on the tag and select **Copy** -> **Copy outerHTML**.
+4.  Open a text editor (like Notepad) and **Paste** the content.
+5.  **Save the file** with a `.html` extension (e.g., `my_collection.html`).
 
-3. **Generate Album Checklist**
-   - **Enter a Category ID** (e.g., `uefa_european_championship`). You can find this ID in a category's LastSticker URL.
-   - **Select Item Type**: Choose to fetch "Both", "Stickers", or "Cards" via the radio button.
-   - **Click "Generate Checklist"**.
-   - The app scrapes all sub-albums within that specific category, extracting their Descriptions, Publishers, release Years, Total Count, and default Categories (Cards vs Stickers).
-   - It will display an interactive table where you can track ownership via the `Stickeristas` checkboxes. The table intelligently preserves these selections as you browse around.
-   - Click the **Open ↗** link in the `🔗 Sync` column to deep-link directly to that specific album's checklist in a new tab.
-   - Click **Download Excel** to save the `.xlsx` file. Checked rows export as `TRUE`, and the filename dynamically specifies what was fetched (e.g. `category_albums_stickers.xlsx`).
+> [!TIP]
+> Alternatively, you can simply press `Ctrl + S` (Windows) or `Cmd + S` (Mac) to save the entire webpage as "Webpage, HTML Only".
+
+### Step 3: Sync
+1.  Open the SyncCollection app in your browser.
+2.  Select the corresponding page from the sidebar (User Collections, Specific Album, etc.).
+3.  **Drag and drop** your saved `.html` file into the upload area.
+4.  The app will instantly parse the data and provide **JSON** and **CSV** download options.
+
+---
+
+## 📋 Available Features
+*   **User Collections**: Extracts all "Needed" and "Offered" stickers across your entire profile.
+*   **Specific Album**: Compares Standard and Extended checklists and generates individual CSVs.
+*   **Category Checklist**: Generates a master list of all albums within a specific Category (e.g., FIFA World Cup).
+
+## 🗂 File Structure
+*   `app.py`: The core Streamlit application.
+*   `requirements.txt`: Minimal dependencies (No Playwright/Cloudscraper needed).
