@@ -1,62 +1,57 @@
 # SyncCollection
 
-SyncCollection is a web application that extracts sticker collections and specific album checklists from LastSticker. This helps collectors keep track of their progress offline or manage their lists in custom databases. The application is built using Python, Streamlit, and BeautifulSoup for HTML parsing.
+A hybrid sticker collection sync tool. Some pages use drag & drop HTML upload; album checklist pages use an automated browser popup.
 
-## Features
-- **User Collections**: Sync an entire user profile to extract detailed lists of all needed and offered stickers across their active collections.
-- **Specific Album Checklist**: Sync a specific album to download its full checklist as a CSV, complete with `No.`, `Title`, `Section`, `Type`, and a default `Category`.
-- **Generate Album Checklist**: Scrape an entire category (e.g. `uefa_european_championship`) to generate a master checklist of all released albums, exported as an interactive Excel file.
+## 🚀 Navigation
 
-## Prerequisites
-To run this application locally, you will need Python 3 installed. Python 3.8 or later is recommended.
-The application depends on the following third-party libraries:
-- `streamlit`
-- `pandas`
-- `beautifulsoup4`
-- `cloudscraper`
-- `openpyxl`
+| Page | Method | URL to export/fetch from LastSticker |
+|---|---|---|
+| **User from file** | Drag & Drop | `laststicker.com/user/[USERNAME]/collections` |
+| **Standard Album** | Automated Browser | `laststicker.com/cards/[ALBUM_ID]` |
+| **Extended Album** | Automated Browser | `laststicker.com/cards/[ALBUM_ID]/checklist` |
+| **Album from file** | Drag & Drop | `laststicker.com/cards/[ALBUM_ID]` or `/checklist` |
+| **Album Checklist from file** | Drag & Drop | `laststicker.com/cards/s/[CATEGORY_ID]` |
 
-## Setup & Execution
+---
 
-### Windows
-1. Double-click the provided `run.bat` file in the project folder.
-2. The batch script will automatically install any missing dependencies and then start the Streamlit application.
-3. A local server will start, and the UI will automatically open in your default web browser at `http://localhost:8501`.
+## 🛠 How to Export HTML (for Drag & Drop pages)
 
-### macOS / Linux / Manual Execution
-1. Open your terminal or command prompt.
-2. Navigate to the project directory.
-3. Install the required dependencies using pip:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run the Streamlit app:
-   ```bash
-   streamlit run app.py
-   ```
+1. Visit the corresponding LastSticker URL in your browser.
+2. Right-click anywhere on the page → **Inspect** (or press `F12`).
+3. In the **Elements** tab, find the `<html>` tag.
+4. Right-click it → **Copy** → **Copy outerHTML**.
+5. Paste into a text editor (e.g. Notepad) and save as a `.html` file.
+6. Drag and drop the saved file into the app's upload area.
 
-## Navigating the Application
+> [!TIP]
+> Alternatively, press `Ctrl + S` in your browser and save as **"Webpage, HTML Only"** for a quick export.
 
-The application has a dynamic sidebar that provides three main pages to choose from:
+---
 
-1. **User Collections**
-   - **Enter a Username** (e.g., your username or any public profile).
-   - **Click "Sync Collection"**.
-   - The app will securely connect, fetch the list of active collections, and securely extract checklists of needed and offered stickers.
-   - You can review the output in the JSON expander and click **Download CSV** to save the result.
+## 🤖 Automated Browser Pages (Standard & Extended Album)
 
-2. **Specific Album**
-   - **Enter an Album ID** (e.g., `topps_uefa_champions_league_2025-2026`). You can find this ID in the album's direct URL. Alternatively, you can deep-link into this page from the Generate Album Checklist table.
-   - **Select a category**: Choose whether you only want the row marked as `Stickers`, `Cards`, or `Mixed`. The app will assign the correct `Category` column property based on this toggle.
-   - **Click "Sync Album"** (this happens automatically if navigating via deep-links).
-   - The app scrapes the checklist, automatically checking both the standard album URL and the extended `/checklist` URL. It displays basic metrics about the album like Name, Year, and dynamically labels the stated total count as `Stated total stickers` or `Stated total cards`.
-   - **Standard vs Extended**: If the standard and extended versions differ, or the stated total stickers is smaller than the full list, the app will separate them into tabs. You can view JSON data or download CSV files for either the **Standard Version** or **Extended Version**.
+The **Standard Album** and **Extended Album** pages open a visible browser popup to fetch data automatically.
 
-3. **Generate Album Checklist**
-   - **Enter a Category ID** (e.g., `uefa_european_championship`). You can find this ID in a category's LastSticker URL.
-   - **Select Item Type**: Choose to fetch "Both", "Stickers", or "Cards" via the radio button.
-   - **Click "Generate Checklist"**.
-   - The app scrapes all sub-albums within that specific category, extracting their Descriptions, Publishers, release Years, Total Count, and default Categories (Cards vs Stickers).
-   - It will display an interactive table where you can track ownership via the `Stickeristas` checkboxes. The table intelligently preserves these selections as you browse around.
-   - Click the **Open ↗** link in the `🔗 Sync` column to deep-link directly to that specific album's checklist in a new tab.
-   - Click **Download Excel** to save the `.xlsx` file. Checked rows export as `TRUE`, and the filename dynamically specifies what was fetched (e.g. `category_albums_stickers.xlsx`).
+1. Enter the Album ID (e.g. `panini_world_cup_2026`) — or paste the full LastSticker URL.
+2. Click **Verify to Sync**.
+3. A Chromium browser window will open and navigate to the album page.
+4. If a **Cloudflare challenge** appears, solve it manually in the popup.
+5. Once the checklist table is visible, the app detects it automatically and captures the data.
+
+> [!IMPORTANT]
+> The browser window **must remain visible** so you can interact with Cloudflare challenges.
+
+---
+
+## ⚙️ Prerequisites
+
+```bash
+pip install -r requirements.txt
+py -m playwright install chromium
+```
+
+## ▶️ Running the App
+
+```bash
+streamlit run app.py
+```
