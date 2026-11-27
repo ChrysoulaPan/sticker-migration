@@ -105,7 +105,7 @@ def extract_stickers_from_html(html, category_option):
             if len(cols) >= 4:
                 no, title, sec, typ = [c.get_text(strip=True) for c in cols[:4]]
                 if no.lower() == "no." or title.lower() == "title": continue
-                cat = "card" if (category_option == "Cards" or (category_option == "Mixed" and "Card" in typ)) else "sticker"
+                cat = "card" if (category_option == "Cards" or (category_option == "Mixed" and "card" in typ.lower())) else "sticker"
                 stickers.append({"No.": no, "Title": title, "Section": sec, "Type": typ, "Category": cat})
     return name, year, total_text, t_type, t_count, stickers
 
